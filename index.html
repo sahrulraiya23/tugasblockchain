@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Daftar Tugas Mahasiswa - Blockchain P2P</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Aplikasi Daftar Tugas Mahasiswa</h1>
+            <p>Diverifikasi dengan Teknologi Blockchain P2P</p>
+            <div class="blockchain-info">
+                <p>Blockchain ID: <span id="blockchain-id"></span></p>
+                <p>Block Terakhir: <span id="last-block"></span></p>
+            </div>
+            <div class="p2p-status">
+                <p>
+                    <span class="status-indicator" id="p2p-status-indicator"></span>
+                    Status P2P: <span id="p2p-status">Memuat...</span>
+                </p>
+                <p>ID Peer Anda: <span id="my-peer-id">-</span>
+                    <button class="copy-btn" id="copy-id-btn">Salin ID</button>
+                </p>
+                <p>Peer Terhubung: <span id="connected-peers-count">0</span></p>
+            </div>
+        </header>
+
+        <div class="peer-connection">
+            <h2>Koneksi P2P</h2>
+            <p>Hubungkan dengan pengguna lain untuk sinkronisasi data tugas</p>
+
+            <div class="form-group">
+                <label for="connect-peer-id">ID Peer Teman</label>
+                <input type="text" id="connect-peer-id" placeholder="Masukkan ID peer teman Anda">
+            </div>
+
+            <div class="connection-controls">
+                <button id="connect-btn">Hubungkan</button>
+                <button id="disconnect-all-btn">Putuskan Semua</button>
+            </div>
+
+            <div class="peers-list" id="peers-list">
+                <!-- Connected peers will be listed here -->
+            </div>
+        </div>
+
+        <div class="task-form">
+            <h2>Tambah Tugas Baru</h2>
+            <form id="add-task-form">
+                <div class="form-group">
+                    <label for="task-title">Judul Tugas</label>
+                    <input type="text" id="task-title" placeholder="Masukkan judul tugas" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-desc">Deskripsi Tugas</label>
+                    <textarea id="task-desc" placeholder="Jelaskan detail tugas"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="task-deadline">Deadline</label>
+                    <input type="date" id="task-deadline" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-priority">Prioritas</label>
+                    <select id="task-priority">
+                        <option value="low">Rendah</option>
+                        <option value="medium" selected>Sedang</option>
+                        <option value="high">Tinggi</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="task-subject">Mata Kuliah</label>
+                    <input type="text" id="task-subject" placeholder="Masukkan mata kuliah">
+                </div>
+                <button type="submit">Tambah Tugas</button>
+            </form>
+        </div>
+
+        <div class="task-list">
+            <div class="task-list-header">
+                <h2>Daftar Tugas</h2>
+                <div class="filter-options">
+                    <label for="filter-priority">Filter:</label>
+                    <select id="filter-priority">
+                        <option value="all">Semua</option>
+                        <option value="high">Prioritas Tinggi</option>
+                        <option value="medium">Prioritas Sedang</option>
+                        <option value="low">Prioritas Rendah</option>
+                    </select>
+                </div>
+            </div>
+            <div class="tasks" id="task-container">
+                <!-- Task items will be added here dynamically -->
+            </div>
+        </div>
+
+        <div class="blockchain-stats">
+            <h2>Statistik Blockchain</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-blocks">0</div>
+                    <div class="stat-label">Total Blok</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="total-tasks">0</div>
+                    <div class="stat-label">Total Tugas</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="completed-tasks">0</div>
+                    <div class="stat-label">Tugas Selesai</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="peers-count">0</div>
+                    <div class="stat-label">Jumlah Peer</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <!-- Notification content will be added dynamically -->
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
