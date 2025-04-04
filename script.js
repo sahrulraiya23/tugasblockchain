@@ -1,4 +1,4 @@
-// Simple blockchain implementation
+// Simple blockchain implementation with SHA-256 hashing
 class Block {
     constructor(index, timestamp, data, previousHash = '') {
         this.index = index;
@@ -9,9 +9,9 @@ class Block {
     }
 
     calculateHash() {
-        // Simple hash function for demo purposes
+        // Use SHA-256 for secure hashing
         const dataString = this.index + this.timestamp + JSON.stringify(this.data) + this.previousHash;
-        return hashString(dataString);
+        return sha256(dataString);
     }
 }
 
@@ -87,11 +87,25 @@ class Blockchain {
     }
 }
 
-// Simple hash function for demo purposes
-function hashString(str) {
+// SHA-256 implementation
+async function sha256(message) {
+    // Encode the message as UTF-8
+    const msgBuffer = new TextEncoder().encode(message);
+    // Hash the message
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    // Convert the hash to hex string
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+// Make sha256 function synchronous for easier use in the blockchain
+function sha256Sync(message) {
+    // For browsers that don't support crypto.subtle in synchronous contexts
+    // This is a fallback that should be replaced with a proper synchronous SHA-256 implementation
     let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
+    for (let i = 0; i < message.length; i++) {
+        const char = message.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash; // Convert to 32bit integer
     }
@@ -116,7 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Display blockchain info
     document.getElementById('blockchain-id').textContent = blockchainId;
-    document.getElementById('last-block').textContent = taskChain.getLatestBlock().hash.substring(0, 10) + '...';
+    
+    // Ensure proper async initialization of the first block's hash
+    sha256("0").then(hash => {
+        document.getElementById('last-block').textContent = taskChain.getLatestBlock().hash.substring(0, 10) + '...';
+    });
 
     // P2P connection variables
     let peer;
@@ -151,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('filter-priority').addEventListener('change', renderTasks);
 
-    document.getElementById('add-task-form').addEventListener('submit', function(e) {
+    document.getElementById('add-task-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
         // Get form values
@@ -178,7 +196,16 @@ document.addEventListener('DOMContentLoaded', () => {
             tasks: [task]
         });
         
-        taskChain.addBlock(newBlock);
+        // Since SHA-256 is async, we need to await for the hash calculation
+        newBlock.previousHash = taskChain.getLatestBlock().hash;
+        newBlock.hash = await sha256(
+            newBlock.index + 
+            newBlock.timestamp + 
+            JSON.stringify(newBlock.data) + 
+            newBlock.previousHash
+        );
+        
+        taskChain.chain.push(newBlock);
         
         // Update UI
         document.getElementById('last-block').textContent = taskChain.getLatestBlock().hash.substring(0, 10) + '...';
@@ -289,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Process received blockchain
-    function processReceivedBlockchain(receivedChain) {
+    async function processReceivedBlockchain(receivedChain) {
         // Convert plain objects back to Block instances
         const reconstructedChain = [];
         for (const blockData of receivedChain) {
@@ -307,7 +334,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const tempChain = new Blockchain();
         tempChain.chain = reconstructedChain;
 
-        if (tempChain.isChainValid()) {
+        let isValid = true;
+        for (let i = 1; i < reconstructedChain.length; i++) {
+            const currentBlock = reconstructedChain[i];
+            const previousBlock = reconstructedChain[i - 1];
+            
+            // Verify the hash calculation
+            const calculatedHash = await sha256(
+                currentBlock.index + 
+                currentBlock.timestamp + 
+                JSON.stringify(currentBlock.data) + 
+                currentBlock.previousHash
+            );
+            
+            if (currentBlock.hash !== calculatedHash) {
+                isValid = false;
+                break;
+            }
+            
+            if (currentBlock.previousHash !== previousBlock.hash) {
+                isValid = false;
+                break;
+            }
+        }
+
+        if (isValid) {
             // Check if received chain is longer than current chain
             if (reconstructedChain.length > taskChain.chain.length) {
                 taskChain.chain = reconstructedChain;
@@ -443,48 +494,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Render tasks
-   function renderTasks() {
-    const taskContainer = document.getElementById('task-container');
-    taskContainer.innerHTML = '';
+    function renderTasks() {
+        const taskContainer = document.getElementById('task-container');
+        taskContainer.innerHTML = '';
 
-    const filter = document.getElementById('filter-priority').value;
-    const tasks = taskChain.getTasks();
+        const filter = document.getElementById('filter-priority').value;
+        const tasks = taskChain.getTasks();
 
-    const filteredTasks = filter === 'all' ?
-        tasks :
-        tasks.filter(task => task.priority === filter);
+        const filteredTasks = filter === 'all' ?
+            tasks :
+            tasks.filter(task => task.priority === filter);
 
-    if (filteredTasks.length === 0) {
-        taskContainer.innerHTML = '<div class="task-item"><p>Tidak ada tugas ditemukan.</p></div>';
-        return;
-    }
-
-    filteredTasks.forEach(task => {
-        const taskEl = document.createElement('div');
-        taskEl.className = 'task-item';
-
-        if (task.completed) {
-            taskEl.style.backgroundColor = '#f9f9f9';
-            taskEl.style.textDecoration = 'line-through';
+        if (filteredTasks.length === 0) {
+            taskContainer.innerHTML = '<div class="task-item"><p>Tidak ada tugas ditemukan.</p></div>';
+            return;
         }
 
-        const priorityClass = `priority-${task.priority}`;
+        filteredTasks.forEach(task => {
+            const taskEl = document.createElement('div');
+            taskEl.className = 'task-item';
 
-        taskEl.innerHTML = `
-            <div class="task-info">
-                <div class="task-title">${task.title}</div>
-                <div class="task-details">${task.description || 'Tidak ada deskripsi'}</div>
-                <div class="task-details">Mata Kuliah: ${task.subject || '-'}</div>
-                <div class="task-date">Deadline: ${new Date(task.deadline).toLocaleDateString()}</div>
-                <div class="hash-display">Block Hash: ${task.blockHash ? task.blockHash.substring(0, 15) + '...' : 'N/A'}</div>
-            </div>
-            <div>
-                <span class="task-priority ${priorityClass}">
-                    ${task.priority === 'high' ? 'Tinggi' : task.priority === 'medium' ? 'Sedang' : 'Rendah'}
-                </span>
-            </div>
-        `
+            if (task.completed) {
+                taskEl.style.backgroundColor = '#f9f9f9';
+                taskEl.style.textDecoration = 'line-through';
+            }
 
-        taskContainer.appendChild(taskEl);
-    });
-   }})
+            const priorityClass = `priority-${task.priority}`;
+
+            taskEl.innerHTML = `
+                <div class="task-info">
+                    <div class="task-title">${task.title}</div>
+                    <div class="task-details">${task.description || 'Tidak ada deskripsi'}</div>
+                    <div class="task-details">Mata Kuliah: ${task.subject || '-'}</div>
+                    <div class="task-date">Deadline: ${new Date(task.deadline).toLocaleDateString()}</div>
+                    <div class="hash-display">Block Hash: ${task.blockHash ? task.blockHash.substring(0, 15) + '...' : 'N/A'}</div>
+                </div>
+                <div>
+                    <span class="task-priority ${priorityClass}">
+                        ${task.priority === 'high' ? 'Tinggi' : task.priority === 'medium' ? 'Sedang' : 'Rendah'}
+                    </span>
+                </div>
+            `
+
+            taskContainer.appendChild(taskEl);
+        });
+    }
+});
